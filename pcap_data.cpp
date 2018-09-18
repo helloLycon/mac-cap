@@ -16,8 +16,6 @@
 
 using namespace std;
 
-long g_packetnum = 0;
-
 set<Mac> mac_set;
 
 bool b_cap = true;
@@ -55,7 +53,7 @@ int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
             //printf("cnt = %d\n", mac_set.size());
             //cout << "begin = " << mac_set.begin()->toString() << endl;
             //cout << "end   = " << mac_set.end()->toString() << endl;
-            cout << ret.first->toString() << endl;
+            cout << ret.first->toString() << " (" << mac_set.size() << ')' << endl;
         }
     }
     
@@ -375,7 +373,7 @@ int main(int argc ,char **argv)
         exit(1);
     }
     while ( (pktdata = pcap_next(pcap_handle,&pkthdr)) != NULL ){
-        g_packetnum++;
+        //g_packetnum++;
         //printf("%d\n", g_packetnum);
         process_one_wireless_cap_packet(pktdata, pkthdr);
     }
