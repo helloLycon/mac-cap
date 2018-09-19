@@ -1,4 +1,7 @@
-PROGRAM = mac_cap
+PROGRAM = mac-cap
+
+all:
+	@echo 'usage: make <mips/arm>'
 
 mips: 
 	mips-openwrt-linux-g++ $(CFLAG) *.cpp -lpcap -o $(PROGRAM)
