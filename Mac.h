@@ -7,12 +7,17 @@
 using namespace std;
 
 class Mac {
-public:
+private:
     unsigned char mac[6];
+
+public:
+
+    int counter;
 
     Mac(const unsigned char *src);
     string toString() const ;
     bool operator<(const Mac &m) const ;
+    int incCounter();
 };
 
 

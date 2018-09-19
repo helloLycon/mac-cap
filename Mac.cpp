@@ -6,6 +6,7 @@
 
 Mac::Mac(const unsigned char * src) {
     memcpy(mac, src, 6);
+    counter = 1;
 }
 
 
@@ -20,3 +21,6 @@ string Mac::toString() const {
     return string(tmp);
 }
 
+int Mac::incCounter() {
+    return ++counter;
+}

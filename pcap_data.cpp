@@ -33,6 +33,12 @@ void hexdump(const void *ptr, int len, const char *tip) {
     printf("\n");
 }
 
+template<class T>
+inline T & GetStdSetElement(std::_Rb_tree_const_iterator<T>  std_set_iterator) {
+    return *(T *)&(*std_set_iterator);
+}
+
+
 int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
     const int offs[4] = {4,10,16,24};
     //set<int> myset;
@@ -47,17 +53,17 @@ int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
 
     for(int i=0; i<mac_no; i++) {
         //cout << "mac = " << Mac(pkt+offs[i]).toString() << endl;
-        
         ret = mac_set.insert(Mac(pkt+offs[i]));
         if(ret.second) {
-            //printf("cnt = %d\n", mac_set.size());
             //cout << "begin = " << mac_set.begin()->toString() << endl;
             //cout << "end   = " << mac_set.end()->toString() << endl;
-            cout << ret.first->toString() << " (" << mac_set.size() << ')' << endl;
+            cout << '[' << mac_set.size() << "] " << ret.first->toString() << endl;
+        } else {
+            /* exist */
+            GetStdSetElement(ret.first).incCounter();
         }
     }
     
-
     return 0;
 }
 
@@ -328,7 +334,7 @@ void int_handler(int signo) {
         if(file) {
             FILE *fp = fopen(file, "w");
             for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
-                fprintf(fp, "%s\n", it->toString().c_str());
+                fprintf(fp, "%s (%d)\n", it->toString().c_str(), it->counter);
             }
             fclose(fp);
         }
