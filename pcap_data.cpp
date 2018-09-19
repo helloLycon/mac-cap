@@ -356,7 +356,7 @@ int main(int argc ,char **argv)
     signal(SIGINT, int_handler);
 
     if(argc < 2) {
-        printf("usage: %s <dev>\n", argv[0]);
+        printf("usage: %s <dev> [w-file]\n", argv[0]);
         exit(0);
     }
     if(argc >= 3) {
