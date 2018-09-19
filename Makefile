@@ -1,13 +1,10 @@
-#CC = arm-linux-gnueabihf-gcc-4.7
-CC = mips-openwrt-linux-g++
-#CC = gcc
 PROGRAM = mac_cap
-#CC = arm-linux-gnueabihf-gcc-4.7    #a10
-#PROGRAM = a10_pcap
 
-all: 
-	$(CC) $(CFLAG) *.cpp -lpcap -o $(PROGRAM)
+mips: 
+	mips-openwrt-linux-g++ $(CFLAG) *.cpp -lpcap -o $(PROGRAM)
 
+arm:
+	g++ $(CFLAG) *.cpp -I./ -L/usr/lib/arm-linux-gnueabihf/ -lpcap  -o $(PROGRAM)
 
 clean:
-	@rm *.o *~ -f $(PROGRAM)  
+	rm *.o *~ -f $(PROGRAM)  
