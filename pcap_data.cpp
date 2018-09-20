@@ -22,6 +22,13 @@ bool b_cap = true;
 
 const char *file;
 
+
+struct stats{
+    int total_mac;
+    int total_pkts;
+} tot_stat;
+
+
 void hexdump(const void *ptr, int len, const char *tip) {
     int i;
     if(tip) {
@@ -53,6 +60,7 @@ int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
 
     for(int i=0; i<mac_no; i++) {
         //cout << "mac = " << Mac(pkt+offs[i]).toString() << endl;
+        tot_stat.total_mac++;
         ret = mac_set.insert(Mac(pkt+offs[i]));
         if(ret.second) {
             //cout << "begin = " << mac_set.begin()->toString() << endl;
@@ -331,11 +339,20 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
 void int_handler(int signo) {
     if( signo == SIGINT ) {
         b_cap = false;
+        cout << endl;
+        cout << "total mac = " << mac_set.size() << endl;
+        cout << "total mac(duplicated) = " << tot_stat.total_mac << endl;
+        cout << "total packets = " << tot_stat.total_pkts << endl;
         if(file) {
+            cout << "write into file: " << file << endl;
+        
             FILE *fp = fopen(file, "w");
             for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
                 fprintf(fp, "%s (%d)\n", it->toString().c_str(), it->counter);
             }
+            fprintf(fp, "total mac = %d\n", mac_set.size());
+            fprintf(fp, "total mac(duplicated) = %d\n", tot_stat.total_mac);
+            fprintf(fp, "total packets = %d\n", tot_stat.total_pkts);
             fclose(fp);
         }
         exit(0);
@@ -359,6 +376,7 @@ int main(int argc ,char **argv)
 
     //test();
 
+    tot_stat.total_mac = tot_stat.total_pkts = 0;
     signal(SIGINT, int_handler);
 
     if(argc < 2) {
@@ -371,7 +389,7 @@ int main(int argc ,char **argv)
     
     const char *dev = argv[1];
     printf("dev = %s\n", dev);
-    pcap_handle = pcap_open_live(dev, BUFSIZ, 1, 1000, errbuf);
+    pcap_handle = pcap_open_live(dev, BUFSIZ, 1, 1000*60, errbuf);
 
     if(!pcap_handle)
     {
@@ -381,8 +399,10 @@ int main(int argc ,char **argv)
     while ( (pktdata = pcap_next(pcap_handle,&pkthdr)) != NULL ){
         //g_packetnum++;
         //printf("%d\n", g_packetnum);
+        tot_stat.total_pkts++;
         process_one_wireless_cap_packet(pktdata, pkthdr);
     }
+    cout << "timed out" << endl;
     pcap_close(pcap_handle);
 
     exit(EXIT_SUCCESS);
