@@ -350,10 +350,12 @@ int mac_set_sort(void) {
     }
     mac_list.sort(mac_count_cmp);
 
-    string sort_file = "sort-" + string(file);
+    string sort_file = string(file) + ".sort";
     cout << "write into file: " << sort_file << endl;
     FILE *fp = fopen( sort_file.c_str(), "w" );
     if(!fp) {
+        //cout << "write into " << sort_file << " failed" << endl;
+        perror("fopen");
         return -1;
     }
     
@@ -376,6 +378,9 @@ void int_handler(int signo) {
             cout << "write into file: " << file << endl;
         
             FILE *fp = fopen(file, "w");
+            if(!fp) {
+                perror("fopen");
+            }
             for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
                 fprintf(fp, "%s (%d)\n", it->toString().c_str(), it->counter);
             }
