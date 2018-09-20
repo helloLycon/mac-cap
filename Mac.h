@@ -8,9 +8,8 @@ using namespace std;
 
 class Mac {
 private:
-    unsigned char mac[6];
-
 public:
+    unsigned char mac[6];
 
     int counter;
 

@@ -10,6 +10,7 @@
 #include <time.h>
 #include <ctype.h>
 #include <set>
+#include <list>
 
 #include "pcap_data.h"
 #include "Mac.h"
@@ -335,6 +336,34 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
 }
 
 
+bool mac_count_cmp(const Mac &a, const Mac &b) {
+    if (a.counter == b.counter) {
+        return memcmp(a.mac, b.mac, 6) < 0;
+    }
+    return a.counter < b.counter;
+}
+
+int mac_set_sort(void) {
+    list<Mac> mac_list;
+    for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
+        mac_list.push_back(*it);
+    }
+    mac_list.sort(mac_count_cmp);
+
+    string sort_file = "sort-" + string(file);
+    cout << "write into file: " << sort_file << endl;
+    FILE *fp = fopen( sort_file.c_str(), "w" );
+    if(!fp) {
+        return -1;
+    }
+    
+    for( list<Mac>::iterator it=mac_list.begin(); it!=mac_list.end(); it++ ) {
+        fprintf(fp, "%s (%d)\n", it->toString().c_str(), it->counter);
+    }
+    fclose(fp);
+    return 0;
+}
+
 
 void int_handler(int signo) {
     if( signo == SIGINT ) {
@@ -354,6 +383,7 @@ void int_handler(int signo) {
             fprintf(fp, "total mac(duplicated) = %d\n", tot_stat.total_mac);
             fprintf(fp, "total packets = %d\n", tot_stat.total_pkts);
             fclose(fp);
+            mac_set_sort();
         }
         exit(0);
     }
