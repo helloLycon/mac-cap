@@ -28,23 +28,6 @@ struct stats{
     int total_pkts;
 } tot_stat;
 
-
-void hexdump(const void *ptr, int len, const char *tip) {
-    int i;
-    if(tip) {
-        printf("%s: ", tip);
-    }
-    for(i=0; i<len ;i++) {
-        printf("%02x ", *((const unsigned char *)ptr + i));
-    }
-    printf("\n");
-}
-
-template<class T>
-inline T & GetStdSetElement(std::_Rb_tree_const_iterator<T>  std_set_iterator) {
-    return *(T *)&(*std_set_iterator);
-}
-
 int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
     const int offs[4] = {4,10,16,24};
     //set<int> myset;
@@ -71,13 +54,12 @@ int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
             cout << '[' << mac_set.size() << "] " << ret.first->toString() << endl;
         } else {
             /* exist */
-            GetStdSetElement(ret.first).incCounter();
+            Mac::rwIterator(ret.first)->counter++;
         }
         
         /* is bssid */
         if(Mac::mac_is_bssid(type, sub_type, flags,i+1)){
-            //cout << "bssid"<<endl;
-            GetStdSetElement(ret.first).is_bssid = true;
+            Mac::rwIterator(ret.first)->is_bssid = true;
         }
     }
     

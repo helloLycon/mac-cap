@@ -21,8 +21,8 @@ string Mac::toString() const {
     return string(tmp);
 }
 
-int Mac::incCounter() {
-    return ++counter;
+Mac * Mac::rwIterator(set<Mac>::iterator &it) {
+    return (Mac *)&(*it);
 }
 
 bool Mac::mac_count_cmp(const Mac &a, const Mac &b) {
