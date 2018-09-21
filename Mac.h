@@ -21,16 +21,10 @@ public:
     static Mac * rwIterator(set<Mac>::iterator &it);
     static bool mac_count_cmp(const Mac &a, const Mac &b);
     static bool mac_is_bssid(unsigned char type, unsigned char sub_type, unsigned char flags, int mac_no);
+    static int  mac_set_all_file(const set<Mac> &mac_set, const char *file);
+    static int  mac_set_sort_file(const set<Mac> &mac_set, const char *file);
+    static int  mac_set_bssid_file(const set<Mac> &mac_set, const char *file);
 };
-
-
-
-//bool operator< (const Mac & m1, const Mac &m2);
-
-
-
-
-
 
 
 

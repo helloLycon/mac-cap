@@ -1,5 +1,7 @@
 #include <cstring>
 #include <cstdio>
+#include <iostream>
+#include <list>
 #include "Mac.h"
 
 
@@ -63,4 +65,69 @@ bool Mac::mac_is_bssid(unsigned char type, unsigned char sub_type, unsigned char
     }
     return false;
 }
+
+int Mac::mac_set_all_file(const set<Mac> &mac_set, const char *file) {
+    cout << "write into file: " << file << endl;
+    
+    FILE *fp = fopen(file, "w");
+    if(!fp) {
+        perror("fopen");
+        return -1;
+    }
+    int cnt=0;
+    for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
+        fprintf(fp, "[%d] %s\n",++cnt, it->toString().c_str(), it->counter);
+    }
+    fclose(fp);
+    return 0;
+}
+
+int Mac::mac_set_sort_file(const set<Mac> &mac_set, const char *file) {
+    list<Mac> mac_list;
+    for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
+        mac_list.push_back(*it);
+    }
+    mac_list.sort(Mac::mac_count_cmp);
+
+    string sort_file = string(file) + ".sort";
+    cout << "write into file: " << sort_file << endl;
+    FILE *fp = fopen( sort_file.c_str(), "w" );
+    if(!fp) {
+        perror("fopen");
+        return -1;
+    }
+
+    int cnt=0;
+    for( list<Mac>::iterator it=mac_list.begin(); it!=mac_list.end(); it++ ) {
+        fprintf(fp, "[%d] %s\n", ++cnt, it->toString().c_str(), it->counter);
+    }
+    fclose(fp);
+    return 0;
+}
+
+
+int Mac::mac_set_bssid_file(const set<Mac> &mac_set, const char *file) {
+    list<Mac> mac_list;
+    for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
+        if( it->is_bssid ) {
+            mac_list.push_back(*it);
+        }
+    }
+
+    string sort_file = string(file) + ".bssid";
+    cout << "write into file: " << sort_file << endl;
+    FILE *fp = fopen( sort_file.c_str(), "w" );
+    if(!fp) {
+        perror("fopen");
+        return -1;
+    }
+
+    int cnt=0;
+    for( list<Mac>::iterator it=mac_list.begin(); it!=mac_list.end(); it++ ) {
+        fprintf(fp, "[%d] %s\n",++cnt, it->toString().c_str(), it->counter);
+    }
+    fclose(fp);
+    return 0;
+}
+
 

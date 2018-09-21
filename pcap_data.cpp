@@ -139,99 +139,6 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
     }
 }
 
-int mac_set_all_file(void) {
-    cout << "write into file: " << file << endl;
-    
-    FILE *fp = fopen(file, "w");
-    if(!fp) {
-        perror("fopen");
-    }
-    int cnt=0;
-    for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
-        fprintf(fp, "[%d] %s\n",++cnt, it->toString().c_str(), it->counter);
-    }
-    fclose(fp);
-    return 0;
-}
-
-int mac_set_sort_file(void) {
-    list<Mac> mac_list;
-    for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
-        mac_list.push_back(*it);
-    }
-    mac_list.sort(Mac::mac_count_cmp);
-
-    string sort_file = string(file) + ".sort";
-    cout << "write into file: " << sort_file << endl;
-    FILE *fp = fopen( sort_file.c_str(), "w" );
-    if(!fp) {
-        //cout << "write into " << sort_file << " failed" << endl;
-        perror("fopen");
-        return -1;
-    }
-
-    int cnt=0;
-    for( list<Mac>::iterator it=mac_list.begin(); it!=mac_list.end(); it++ ) {
-        fprintf(fp, "[%d] %s\n", ++cnt, it->toString().c_str(), it->counter);
-    }
-    fclose(fp);
-    return 0;
-}
-
-
-int mac_set_bssid_file(void) {
-    list<Mac> mac_list;
-    for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
-        if( it->is_bssid ) {
-            mac_list.push_back(*it);
-        }
-    }
-    //mac_list.sort(mac_count_cmp);
-
-    string sort_file = string(file) + ".bssid";
-    cout << "write into file: " << sort_file << endl;
-    FILE *fp = fopen( sort_file.c_str(), "w" );
-    if(!fp) {
-        //cout << "write into " << sort_file << " failed" << endl;
-        perror("fopen");
-        return -1;
-    }
-
-    int cnt=0;
-    for( list<Mac>::iterator it=mac_list.begin(); it!=mac_list.end(); it++ ) {
-        fprintf(fp, "[%d] %s\n",++cnt, it->toString().c_str(), it->counter);
-    }
-    fclose(fp);
-    return 0;
-}
-
-
-
-int mac_set_general_file(void) {
-    list<Mac> mac_list;
-    for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
-        if( false == it->is_bssid ) {
-            mac_list.push_back(*it);
-        }
-    }
-    //mac_list.sort(mac_count_cmp);
-
-    string sort_file = string(file) + ".other";
-    cout << "write into file: " << sort_file << endl;
-    FILE *fp = fopen( sort_file.c_str(), "w" );
-    if(!fp) {
-        //cout << "write into " << sort_file << " failed" << endl;
-        perror("fopen");
-        return -1;
-    }
-
-    int cnt=0;
-    for( list<Mac>::iterator it=mac_list.begin(); it!=mac_list.end(); it++ ) {
-        fprintf(fp, "[%d] %s\n",++cnt, it->toString().c_str(), it->counter);
-    }
-    fclose(fp);
-    return 0;
-}
 
 void int_handler(int signo) {
     if( signo == SIGINT ) {
@@ -248,10 +155,9 @@ void int_handler(int signo) {
         cout << "total mac(duplicated) = " << tot_stat.total_mac << endl;
         cout << "total packets = " << tot_stat.total_pkts << endl;
         if(file) {
-            mac_set_all_file();
-            mac_set_sort_file();
-            mac_set_bssid_file();
-            mac_set_general_file();
+            Mac::mac_set_all_file(mac_set, file);
+            Mac::mac_set_sort_file(mac_set, file);
+            Mac::mac_set_bssid_file(mac_set, file);
         }
         exit(0);
     }
