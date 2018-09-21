@@ -12,11 +12,13 @@ public:
     unsigned char mac[6];
 
     int counter;
+    bool is_bssid;
 
-    Mac(const unsigned char *src);
+    Mac(const unsigned char *src, bool bssid=false);
     string toString() const ;
     bool operator<(const Mac &m) const ;
     int incCounter();
+    static bool mac_is_bssid(unsigned char type, unsigned char sub_type, unsigned char flags, int mac_no);
 };
 
 

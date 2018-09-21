@@ -1,19 +1,18 @@
 #include <pcap.h>
 #include <iostream>
-#include <stdlib.h>
+#include <cstdlib>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <stdio.h>
 #include <csignal>
-#include <string.h>
-#include <errno.h>
-#include <time.h>
-#include <ctype.h>
+#include <cstring>
+#include <cerrno>
+#include <ctime>
+#include <cctype>
 #include <set>
 #include <list>
 
-#include "pcap_data.h"
 #include "Mac.h"
+#include "pcap_data.h"
 
 using namespace std;
 
@@ -46,12 +45,16 @@ inline T & GetStdSetElement(std::_Rb_tree_const_iterator<T>  std_set_iterator) {
     return *(T *)&(*std_set_iterator);
 }
 
-
 int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
     const int offs[4] = {4,10,16,24};
     //set<int> myset;
     set<Mac>::iterator it;
     pair<set<Mac>::iterator, bool> ret;
+
+    u_int8 type = (pkt[0] & 0x0C) >> 2;
+    u_int8 sub_type = (pkt[0] & 0xF0) >> 4;
+    u_int8 flags = pkt[1];
+
 
     if(b_cap == false ) {
         for(;;) {
@@ -63,13 +66,18 @@ int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
         //cout << "mac = " << Mac(pkt+offs[i]).toString() << endl;
         tot_stat.total_mac++;
         ret = mac_set.insert(Mac(pkt+offs[i]));
+    
         if(ret.second) {
-            //cout << "begin = " << mac_set.begin()->toString() << endl;
-            //cout << "end   = " << mac_set.end()->toString() << endl;
             cout << '[' << mac_set.size() << "] " << ret.first->toString() << endl;
         } else {
             /* exist */
             GetStdSetElement(ret.first).incCounter();
+        }
+        
+        /* is bssid */
+        if(Mac::mac_is_bssid(type, sub_type, flags,i+1)){
+            //cout << "bssid"<<endl;
+            GetStdSetElement(ret.first).is_bssid = true;
         }
     }
     
@@ -80,42 +88,14 @@ int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
 void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pkthdr pkthdr)
 {    
     const unsigned char prism_msg_code[] = {0,0,0,0x44};
-    IEEE_802_11_info *pt_iee_802_11_info = NULL;
-    Logical_Link_Ctl *pt_logical_linkctl = NULL;
-    IPHeader_t *pt_ip_header = NULL;
-    TCPHeader_t *pt_tcp_header = NULL;
-    char src_ip[STRSIZE], dst_ip[STRSIZE];
-    char src_mac[STRSIZE], dst_mac[STRSIZE];
-    u_int32 src_port, dst_port;
-    unsigned char *pmac = NULL;
-    u_int8 iphead_len, tcphead_len;
-    u_int16 iptotal_len;
-    char my_time[STRSIZE];
-    static struct timeval current_time;
-    const u_char *pktdata_temp = pktdata;
-    phone_data data_record;
-
-
-    unsigned long i;
-    unsigned dbm_offset;
-    char dbm;
-
-
-    
     const u_char *h80211;
+
     if( !memcmp(pktdata, prism_msg_code, 4) ) {
         h80211 = pktdata + ((const unsigned int *)pktdata)[1];
     } else {
         h80211 = pktdata+pktdata[2]+(pktdata[3]>>8);
     }
-    //u_char bssid[6]={0,0,0,0,0,0};
-    //u_char bssid_flag=0;
-    //u_char stmac[6]={0,0,0,0,0,0};
-    //u_char stmac_flag=0;
-   /* memset(&data_record, 0, sizeof(data_record));
-    memset(&current_time, 0, sizeof(current_time));*/
-   // printf("h80211[0]=0\n",h80211[0]);
-    //printf("len = %d\n", pkthdr.len);
+
     if(pkthdr.len<24){
         printf("error: pkthdr.len=%d\n",pkthdr.len);
         return;
@@ -185,7 +165,22 @@ bool mac_count_cmp(const Mac &a, const Mac &b) {
     return a.counter < b.counter;
 }
 
-int mac_set_sort(void) {
+int mac_set_all_file(void) {
+    cout << "write into file: " << file << endl;
+    
+    FILE *fp = fopen(file, "w");
+    if(!fp) {
+        perror("fopen");
+    }
+    int cnt=0;
+    for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
+        fprintf(fp, "[%d] %s\n",++cnt, it->toString().c_str(), it->counter);
+    }
+    fclose(fp);
+    return 0;
+}
+
+int mac_set_sort_file(void) {
     list<Mac> mac_list;
     for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
         mac_list.push_back(*it);
@@ -200,37 +195,89 @@ int mac_set_sort(void) {
         perror("fopen");
         return -1;
     }
-    
+
+    int cnt=0;
     for( list<Mac>::iterator it=mac_list.begin(); it!=mac_list.end(); it++ ) {
-        fprintf(fp, "%s (%d)\n", it->toString().c_str(), it->counter);
+        fprintf(fp, "[%d] %s\n", ++cnt, it->toString().c_str(), it->counter);
     }
     fclose(fp);
     return 0;
 }
 
 
+int mac_set_bssid_file(void) {
+    list<Mac> mac_list;
+    for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
+        if( it->is_bssid ) {
+            mac_list.push_back(*it);
+        }
+    }
+    //mac_list.sort(mac_count_cmp);
+
+    string sort_file = string(file) + ".bssid";
+    cout << "write into file: " << sort_file << endl;
+    FILE *fp = fopen( sort_file.c_str(), "w" );
+    if(!fp) {
+        //cout << "write into " << sort_file << " failed" << endl;
+        perror("fopen");
+        return -1;
+    }
+
+    int cnt=0;
+    for( list<Mac>::iterator it=mac_list.begin(); it!=mac_list.end(); it++ ) {
+        fprintf(fp, "[%d] %s\n",++cnt, it->toString().c_str(), it->counter);
+    }
+    fclose(fp);
+    return 0;
+}
+
+
+
+int mac_set_general_file(void) {
+    list<Mac> mac_list;
+    for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
+        if( false == it->is_bssid ) {
+            mac_list.push_back(*it);
+        }
+    }
+    //mac_list.sort(mac_count_cmp);
+
+    string sort_file = string(file) + ".other";
+    cout << "write into file: " << sort_file << endl;
+    FILE *fp = fopen( sort_file.c_str(), "w" );
+    if(!fp) {
+        //cout << "write into " << sort_file << " failed" << endl;
+        perror("fopen");
+        return -1;
+    }
+
+    int cnt=0;
+    for( list<Mac>::iterator it=mac_list.begin(); it!=mac_list.end(); it++ ) {
+        fprintf(fp, "[%d] %s\n",++cnt, it->toString().c_str(), it->counter);
+    }
+    fclose(fp);
+    return 0;
+}
+
 void int_handler(int signo) {
     if( signo == SIGINT ) {
         b_cap = false;
         cout << endl;
+        int bssid_cnt=0;
+        for(set<Mac>::iterator it=mac_set.begin(); it != mac_set.end(); it++) {
+            if(it->is_bssid) {
+                bssid_cnt++;
+            }
+        }
+        cout << "total bssid = " << bssid_cnt << endl;
         cout << "total mac = " << mac_set.size() << endl;
         cout << "total mac(duplicated) = " << tot_stat.total_mac << endl;
         cout << "total packets = " << tot_stat.total_pkts << endl;
         if(file) {
-            cout << "write into file: " << file << endl;
-        
-            FILE *fp = fopen(file, "w");
-            if(!fp) {
-                perror("fopen");
-            }
-            for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
-                fprintf(fp, "%s (%d)\n", it->toString().c_str(), it->counter);
-            }
-            fprintf(fp, "total mac = %d\n", mac_set.size());
-            fprintf(fp, "total mac(duplicated) = %d\n", tot_stat.total_mac);
-            fprintf(fp, "total packets = %d\n", tot_stat.total_pkts);
-            fclose(fp);
-            mac_set_sort();
+            mac_set_all_file();
+            mac_set_sort_file();
+            mac_set_bssid_file();
+            mac_set_general_file();
         }
         exit(0);
     }
