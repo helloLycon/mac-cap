@@ -18,6 +18,7 @@ public:
     string toString() const ;
     bool operator<(const Mac &m) const ;
     int incCounter();
+    static bool mac_count_cmp(const Mac &a, const Mac &b);
     static bool mac_is_bssid(unsigned char type, unsigned char sub_type, unsigned char flags, int mac_no);
 };
 

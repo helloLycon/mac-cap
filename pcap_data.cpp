@@ -157,14 +157,6 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
     }
 }
 
-
-bool mac_count_cmp(const Mac &a, const Mac &b) {
-    if (a.counter == b.counter) {
-        return memcmp(a.mac, b.mac, 6) < 0;
-    }
-    return a.counter < b.counter;
-}
-
 int mac_set_all_file(void) {
     cout << "write into file: " << file << endl;
     
@@ -185,7 +177,7 @@ int mac_set_sort_file(void) {
     for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
         mac_list.push_back(*it);
     }
-    mac_list.sort(mac_count_cmp);
+    mac_list.sort(Mac::mac_count_cmp);
 
     string sort_file = string(file) + ".sort";
     cout << "write into file: " << sort_file << endl;
@@ -287,16 +279,8 @@ int main(int argc ,char **argv)
 {
     pcap_t *pcap_handle = NULL;
     char errbuf[PCAP_ERRBUF_SIZE] = {0};
-    const char *net_interface = "wlan0";
-    struct bpf_program bpf_filter = {0};
-    char bpf_filter_string[] = "";//tcp";
-    bpf_u_int32 net_mask = 0;
-    bpf_u_int32 net_ip = 0;
-    int ret = 0;
-    int len = 0;
     const u_int8 *pktdata = NULL;
     struct pcap_pkthdr pkthdr;
-    unsigned long i,j;
 
     //test();
 

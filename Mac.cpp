@@ -25,6 +25,13 @@ int Mac::incCounter() {
     return ++counter;
 }
 
+bool Mac::mac_count_cmp(const Mac &a, const Mac &b) {
+    if (a.counter == b.counter) {
+        return memcmp(a.mac, b.mac, 6) < 0;
+    }
+    return a.counter < b.counter;
+}
+
 
 bool Mac::mac_is_bssid(unsigned char type, unsigned char sub_type, unsigned char flags, int mac_no) {
     unsigned char fromDs = flags & 0x2;
