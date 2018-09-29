@@ -10,23 +10,26 @@
 #include <cctype>
 #include <set>
 #include <list>
+#include <pthread.h>
+#include <semaphore.h>
 
 #include "Mac.h"
 #include "pcap_data.h"
 
 using namespace std;
 
+
 set<Mac> mac_set;
-
-bool b_cap = true;
-
 const char *file;
 
+pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
+sem_t sem;
 
 struct stats{
     int total_mac;
     int total_pkts;
-} tot_stat;
+} tot_stat = {0};
+
 
 int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
     const int offs[4] = {4,10,16,24};
@@ -37,13 +40,6 @@ int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
     u_int8 type = (pkt[0] & 0x0C) >> 2;
     u_int8 sub_type = (pkt[0] & 0xF0) >> 4;
     u_int8 flags = pkt[1];
-
-
-    if(b_cap == false ) {
-        for(;;) {
-            sleep(10);
-        }
-    }
 
     for(int i=0; i<mac_no; i++) {
         //cout << "mac = " << Mac(pkt+offs[i]).toString() << endl;
@@ -139,69 +135,97 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
     }
 }
 
+void *record_routine(void *arg) {
+    sem_wait(&sem);
+
+    pthread_mutex_lock(&mtx);
+    cout << endl;
+    int bssid_cnt=0;
+    for(set<Mac>::iterator it=mac_set.begin(); it != mac_set.end(); it++) {
+        if(it->is_bssid) {
+            bssid_cnt++;
+        }
+    }
+    cout << "total bssid = " << bssid_cnt << endl;
+    cout << "total mac = " << mac_set.size() << endl;
+    cout << "total mac(duplicated) = " << tot_stat.total_mac << endl;
+    cout << "total packets = " << tot_stat.total_pkts << endl;
+    if(file) {
+        Mac::mac_set_all_file(mac_set, file);
+        Mac::mac_set_sort_file(mac_set, file);
+        Mac::mac_set_bssid_file(mac_set, file);
+    }
+    exit(0);
+}
+
+void *cap_routine(void *arg) {
+    pcap_t *pcap_handle = NULL;
+    char errbuf[PCAP_ERRBUF_SIZE] = {0};
+    const u_int8 *pktdata = NULL;
+    struct pcap_pkthdr pkthdr;
+    const char *dev = (char *)arg;
+
+    cout << "dev: " << dev << endl;
+    pcap_handle = pcap_open_live(dev, BUFSIZ, 1, 1000*60, errbuf);
+    if(!pcap_handle)
+    {
+        cout << errbuf << endl;
+        return NULL;
+    }
+
+    sleep(2);
+    while ( (pktdata = pcap_next(pcap_handle,&pkthdr)) != NULL ){
+        //g_packetnum++;
+        //printf("%d\n", g_packetnum);
+        pthread_mutex_lock(&mtx);
+        tot_stat.total_pkts++;
+        process_one_wireless_cap_packet(pktdata, pkthdr);
+        pthread_mutex_unlock(&mtx);
+    }
+    cout << "timed out" << endl;
+    pcap_close(pcap_handle);
+    return NULL;
+}
 
 void int_handler(int signo) {
     if( signo == SIGINT ) {
-        b_cap = false;
-        cout << endl;
-        int bssid_cnt=0;
-        for(set<Mac>::iterator it=mac_set.begin(); it != mac_set.end(); it++) {
-            if(it->is_bssid) {
-                bssid_cnt++;
-            }
-        }
-        cout << "total bssid = " << bssid_cnt << endl;
-        cout << "total mac = " << mac_set.size() << endl;
-        cout << "total mac(duplicated) = " << tot_stat.total_mac << endl;
-        cout << "total packets = " << tot_stat.total_pkts << endl;
-        if(file) {
-            Mac::mac_set_all_file(mac_set, file);
-            Mac::mac_set_sort_file(mac_set, file);
-            Mac::mac_set_bssid_file(mac_set, file);
-        }
-        exit(0);
+        sem_post(&sem);
     }
 }
 
 int main(int argc ,char **argv)
 {
-    pcap_t *pcap_handle = NULL;
-    char errbuf[PCAP_ERRBUF_SIZE] = {0};
-    const u_int8 *pktdata = NULL;
-    struct pcap_pkthdr pkthdr;
-
-    //test();
-
-    tot_stat.total_mac = tot_stat.total_pkts = 0;
+    sem_init(&sem, 0, 0);
     signal(SIGINT, int_handler);
 
     if(argc < 2) {
-        printf("usage: %s <dev> [w-file]\n", argv[0]);
+        printf("usage: %s <dev> [-w file]\n", argv[0]);
         exit(0);
     }
-    if(argc >= 3) {
-        file = argv[2];
+    pthread_t tid;
+    pthread_create(&tid, NULL, record_routine, NULL);
+    pthread_detach(tid);
+    for(int i=1; i<argc; i++) {
+        if(string(argv[i]) == "-w") {
+            file = argv[++i];
+            continue;
+        }
+        else if ( !strncmp(argv[i], "-w", 2) ) {
+            file = argv[i] + 2;
+            continue;
+        }
+
+        pthread_t tid;
+        pthread_create(&tid, NULL, cap_routine, argv[i]);
+        pthread_detach(tid);
     }
     
-    const char *dev = argv[1];
-    printf("dev = %s\n", dev);
-    pcap_handle = pcap_open_live(dev, BUFSIZ, 1, 1000*60, errbuf);
-
-    if(!pcap_handle)
-    {
-        fprintf(stderr, "pcap_open_live: %s\n",errbuf);
-        exit(1);
+    char line[1024];
+    for(; fgets(line, sizeof line, stdin);) {
+        if(!strncmp(line, "exit", 4)) {
+            raise(SIGINT);
+        }
     }
-    while ( (pktdata = pcap_next(pcap_handle,&pkthdr)) != NULL ){
-        //g_packetnum++;
-        //printf("%d\n", g_packetnum);
-        tot_stat.total_pkts++;
-        process_one_wireless_cap_packet(pktdata, pkthdr);
-    }
-    cout << "timed out" << endl;
-    pcap_close(pcap_handle);
-
-    exit(EXIT_SUCCESS);
     return 0;
 }
 
