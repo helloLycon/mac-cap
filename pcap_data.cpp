@@ -222,7 +222,7 @@ int main(int argc ,char **argv)
     
     char line[1024];
     for(; fgets(line, sizeof line, stdin);) {
-        if(!strncmp(line, "exit", 4)) {
+        if(!strncmp(line, "quit", 4)) {
             raise(SIGINT);
         }
     }
