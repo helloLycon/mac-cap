@@ -163,10 +163,16 @@ void *cap_routine(void *arg) {
     char errbuf[PCAP_ERRBUF_SIZE] = {0};
     const u_int8 *pktdata = NULL;
     struct pcap_pkthdr pkthdr;
-    const char *dev = (char *)arg;
+    const char *input = (char *)arg;
 
-    cout << "dev: " << dev << endl;
-    pcap_handle = pcap_open_live(dev, BUFSIZ, 1, 1000*60, errbuf);
+    cout << "input: " << input << endl;
+
+    /* open a file or a netdev */
+    pcap_handle = pcap_open_live(input, BUFSIZ, 1, 1000*60, errbuf);
+    if(!pcap_handle) {
+        pcap_handle = pcap_open_offline(input, errbuf);
+    }
+    
     if(!pcap_handle)
     {
         cout << errbuf << endl;
@@ -182,7 +188,6 @@ void *cap_routine(void *arg) {
         process_one_wireless_cap_packet(pktdata, pkthdr);
         pthread_mutex_unlock(&mtx);
     }
-    cout << "timed out" << endl;
     pcap_close(pcap_handle);
     return NULL;
 }
@@ -199,7 +204,7 @@ int main(int argc ,char **argv)
     signal(SIGINT, int_handler);
 
     if(argc < 2) {
-        printf("usage: %s <dev> [-w file]\n", argv[0]);
+        printf("usage: %s <dev/file1> [dev/file2] ... [-w file]\n", argv[0]);
         exit(0);
     }
     pthread_t tid;
