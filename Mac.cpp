@@ -11,9 +11,29 @@ Mac::Mac(const unsigned char * src, bool bssid):
     memcpy(mac, src, 6);
 }
 
+Mac::Mac(const char *str):
+    counter(1), is_bssid(false)
+{
+    int int_mac[6];
+    unsigned char real_mac[6];
+    sscanf(str, "%x:%x:%x:%x:%x:%x", int_mac,int_mac+1,int_mac+2,int_mac+3,int_mac+4,int_mac+5);
+    for(int i=0;i<6;i++) {
+        real_mac[i] = (unsigned char)int_mac[i];
+        //printf("mac[%d] = %02x\n", i,real_mac[i]);
+    }
+    //this->Mac(real_mac, 0);
+    memcpy(mac, real_mac, 6);
+}
 
 bool Mac::operator< (const Mac & m) const {
     return memcmp(mac, m.mac, 6) < 0 ;
+}
+
+bool Mac::operator==(const Mac &m) const {
+    return !memcmp(mac, m.mac, 6);
+}
+bool Mac::operator!=(const Mac &m) const {
+    return memcmp(mac, m.mac, 6);
 }
 
 

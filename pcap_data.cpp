@@ -25,11 +25,27 @@ const char *file;
 pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 sem_t sem;
 
+Mac *src_mac;
+
 struct stats{
     int total_mac;
     int total_pkts;
+    int dump_pkts;
 } tot_stat = {0};
 
+string mac2String(const u_int8 *mac) {
+    char macStr[64];
+    sprintf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+    return string(macStr);
+}
+
+string timeval2String(const struct timeval *tv) {
+    struct tm tmv;
+    char str[64];
+    gmtime_r(&tv->tv_sec, &tmv);
+    sprintf(str, "%02d:%02d:%02d.%06d", tmv.tm_hour+8, tmv.tm_min, tmv.tm_sec, tv->tv_usec);
+    return string(str);
+}
 
 int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
     const int offs[4] = {4,10,16,24};
@@ -67,9 +83,15 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
 {    
     const unsigned char prism_msg_code[] = {0,0,0,0x44};
     const u_char *h80211;
+    int channel, rssi;
 
     if( !memcmp(pktdata, prism_msg_code, 4) ) {
         h80211 = pktdata + ((const unsigned int *)pktdata)[1];
+        channel = ntohl(*(long*)(pktdata+0x38));
+        rssi = ntohl(*(long*)(pktdata+0x44));
+        if(rssi>0) {
+            rssi = 0;
+        }
     } else {
         h80211 = pktdata+pktdata[2]+(pktdata[3]>>8);
     }
@@ -85,8 +107,23 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
     const u_int8 type = (h80211[0] & 0x0C) >> 2;
     const u_int8 sub_type = (h80211[0] & 0xF0) >> 4;
     const u_int8 flags = h80211[1];
+
+    //cout << src_mac->toString() <<endl;
+    if( src_mac && *src_mac != Mac(h80211+10)) {
+        return ;
+    }
+
+    tot_stat.dump_pkts++;
     //printf("fc = 0x%04x\n", *fc);
     //printf("%02x - %02x\n", type, sub_type);
+    cout << timeval2String(&pkthdr.ts) << ' ' 
+         << mac2String(h80211+4) << ' '
+         << mac2String(h80211+4+6) << ' '
+         << mac2String(h80211+4+12) << ' '
+         << "CH=" << channel << ' '
+         << "rssi=" << rssi
+         << endl;
+#if  0
     switch(type) {
         case 0:
             /* 3 mac fields */
@@ -133,6 +170,7 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
             //printf("!!!UNKNOWN\n");
         break;
     }
+#endif
 }
 
 void *record_routine(void *arg) {
@@ -146,9 +184,7 @@ void *record_routine(void *arg) {
             bssid_cnt++;
         }
     }
-    cout << "total bssid = " << bssid_cnt << endl;
-    cout << "total mac = " << mac_set.size() << endl;
-    cout << "total mac(duplicated) = " << tot_stat.total_mac << endl;
+    cout << "dump packets = " << tot_stat.dump_pkts << endl;
     cout << "total packets = " << tot_stat.total_pkts << endl;
     if(file) {
         Mac::mac_set_all_file(mac_set, file);
@@ -179,14 +215,9 @@ void *cap_routine(void *arg) {
         return NULL;
     }
 
-    sleep(2);
     while ( (pktdata = pcap_next(pcap_handle,&pkthdr)) != NULL ){
-        //g_packetnum++;
-        //printf("%d\n", g_packetnum);
-        pthread_mutex_lock(&mtx);
         tot_stat.total_pkts++;
         process_one_wireless_cap_packet(pktdata, pkthdr);
-        pthread_mutex_unlock(&mtx);
     }
     pcap_close(pcap_handle);
     return NULL;
@@ -204,7 +235,7 @@ int main(int argc ,char **argv)
     signal(SIGINT, int_handler);
 
     if(argc < 2) {
-        printf("usage: %s <dev/file1> [dev/file2] ... [-w file]\n", argv[0]);
+        printf("usage: %s <dev/file1> [-s src-mac]\n", argv[0]);
         exit(0);
     }
     pthread_t tid;
@@ -217,6 +248,12 @@ int main(int argc ,char **argv)
         }
         else if ( !strncmp(argv[i], "-w", 2) ) {
             file = argv[i] + 2;
+            continue;
+        }
+
+        if(string(argv[i]) == "-s") {
+            src_mac = new Mac(argv[i+1]);
+            i++;
             continue;
         }
 
