@@ -195,6 +195,9 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
     tot_stat.dump_pkts++;
     //printf("fc = 0x%04x\n", *fc);
     //printf("%02x - %02x\n", type, sub_type);
+    if( getType(type, sub_type)=="cts" || getType(type, sub_type)=="ack") {
+        return;
+    }
     cout << timeval2String(&pkthdr.ts) << ' ' 
          << mac2String(h80211+4) << ' '
          << mac2String(h80211+4+6) << ' '
