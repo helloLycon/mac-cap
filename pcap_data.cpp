@@ -78,6 +78,85 @@ int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
     return 0;
 }
 
+string getType(u_int8 type, u_int8 sub_type) {
+    switch(type) {
+        case 0:
+            switch(sub_type) {
+                case 0:
+                    return "asso req";
+                case 1:
+                    return "asso response";
+                case 2:
+                    return "reasso req";
+                case 3:
+                    return "reasso response";
+                case 4:
+                    return "probe req";
+                case 5:
+                    return "probe response";
+                case 8:
+                    return "beacon";
+                case 9:
+                    return "ATIM";
+                case 10:
+                    return "disasso";
+                case 11:
+                    return "auth";
+                case 12:
+                    return "deauth";
+                default:
+                    return "";
+            }
+        case 1:
+            switch(sub_type) {
+                case 0xa:
+                    return "ps-poll";
+                case 0xb:
+                    return "rts";
+                case 0xc:
+                    return "cts";
+                case 0xd:
+                    return "ack";
+                case 0xe:
+                    return "cf-end";
+                case 0xf:
+                    return "cf-end+cf-ack";
+                default:
+                    return "";
+            }
+        case 2:
+            return "Data";
+#if  0
+            switch(sub_type) {
+                case 0:
+                    return "data";
+                case 1:
+                    return "data+cf-ack";
+                case 2:
+                    return "data+cf-poll";
+                case 3:
+                    return "data+cf-ack+cf-poll";
+                case 4:
+                    return "Null data";
+                case 5:
+                    return "cf-ack";
+                case 6:
+                    return "cf-poll";
+                case 7:
+                    return "data+cf-ack+cf-poll";
+                case 8:
+                    return "QoS data";
+                case 9:
+                    return "QoS data+cf-ack";
+                default:
+                    return "";
+            }
+#endif
+        default:
+            return "";
+    }
+}
+
 //开始读数据包
 void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pkthdr pkthdr)
 {    
@@ -121,7 +200,8 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
          << mac2String(h80211+4+6) << ' '
          << mac2String(h80211+4+12) << ' '
          << "CH=" << channel << ' '
-         << "rssi=" << rssi
+         << "rssi=" << rssi << ' '
+         << "type=" << getType(type,sub_type)
          << endl;
 #if  0
     switch(type) {
