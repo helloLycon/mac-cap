@@ -9,8 +9,7 @@ SI/
 si/
 *.si4project
 
-mac_cap
-mac-cap*
+cap.*
 
 # Prerequisites
 *.d

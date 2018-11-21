@@ -1,4 +1,4 @@
-PROGRAM = mac-cap
+PROGRAM = cap
 
 all:
 	@echo 'usage: make <mips/arm>'

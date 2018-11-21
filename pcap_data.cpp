@@ -162,7 +162,7 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
 {    
     const unsigned char prism_msg_code[] = {0,0,0,0x44};
     const u_char *h80211;
-    int channel, rssi;
+    int channel = 0, rssi = 0, freq = 0;
 
     if( !memcmp(pktdata, prism_msg_code, 4) ) {
         h80211 = pktdata + ((const unsigned int *)pktdata)[1];
@@ -173,6 +173,8 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
         }
     } else {
         h80211 = pktdata+pktdata[2]+(pktdata[3]>>8);
+        freq = pktdata[11]*0xff + pktdata[10];
+        rssi = *(signed char*)(pktdata+0xe);
     }
 
     if(pkthdr.len<24){
@@ -201,9 +203,14 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
     cout << timeval2String(&pkthdr.ts) << ' ' 
          << mac2String(h80211+4) << ' '
          << mac2String(h80211+4+6) << ' '
-         << mac2String(h80211+4+12) << ' '
-         << "CH=" << channel << ' '
-         << "rssi=" << rssi << ' '
+         << mac2String(h80211+4+12) << ' ';
+    if( channel ) {
+        cout << "CH=" << channel << ' ';
+    } 
+    else if(freq) {
+        cout << "freq=" << freq << ' ';
+    }
+    cout << "rssi=" << rssi << ' '
          << "type=" << getType(type,sub_type)
          << endl;
 #if  0
