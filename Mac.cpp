@@ -5,8 +5,8 @@
 #include "Mac.h"
 
 
-Mac::Mac(const unsigned char * src, bool bssid): 
-    counter(1), is_bssid(bssid)
+Mac::Mac(const unsigned char * src, bool bssid, int rssi_value): 
+    counter(1), is_bssid(bssid), rssi(rssi_value)
 {
     memcpy(mac, src, 6);
 }
@@ -34,6 +34,12 @@ bool Mac::mac_count_cmp(const Mac &a, const Mac &b) {
     return a.counter < b.counter;
 }
 
+bool Mac::mac_rssi_cmp(const Mac &a, const Mac &b) {
+    if (a.rssi == b.rssi) {
+        return memcmp(a.mac, b.mac, 6) < 0;
+    }
+    return a.rssi > b.rssi;
+}
 
 bool Mac::mac_is_bssid(unsigned char type, unsigned char sub_type, unsigned char flags, int mac_no) {
     unsigned char fromDs = flags & 0x2;
@@ -99,7 +105,31 @@ int Mac::mac_set_sort_file(const set<Mac> &mac_set, const char *file) {
 
     int cnt=0;
     for( list<Mac>::iterator it=mac_list.begin(); it!=mac_list.end(); it++ ) {
-        fprintf(fp, "[%d] %s\n", ++cnt, it->toString().c_str(), it->counter);
+        fprintf(fp, "[%d] %s\n", ++cnt, it->toString().c_str());
+    }
+    fclose(fp);
+    return 0;
+}
+
+
+int Mac::mac_set_sort_rssi_file(const set<Mac> &mac_set, const char *file) {
+    list<Mac> mac_list;
+    for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
+        mac_list.push_back(*it);
+    }
+    mac_list.sort(Mac::mac_rssi_cmp);
+
+    string sort_file = string(file) + ".sort-rssi";
+    cout << "write into file: " << sort_file << endl;
+    FILE *fp = fopen( sort_file.c_str(), "w" );
+    if(!fp) {
+        perror("fopen");
+        return -1;
+    }
+
+    int cnt=0;
+    for( list<Mac>::iterator it=mac_list.begin(); it!=mac_list.end(); it++ ) {
+        fprintf(fp, "[%d] %s (%d)\n", ++cnt, it->toString().c_str(), it->rssi);
     }
     fclose(fp);
     return 0;

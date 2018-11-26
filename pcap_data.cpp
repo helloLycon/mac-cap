@@ -31,7 +31,7 @@ struct stats{
 } tot_stat = {0};
 
 
-int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
+int pkt_mac_handler(const u_int8 *pkt, int mac_no, int rssi) {
     const int offs[4] = {4,10,16,24};
     //set<int> myset;
     set<Mac>::iterator it;
@@ -44,7 +44,18 @@ int pkt_mac_handler(const u_int8 *pkt, int mac_no) {
     for(int i=0; i<mac_no; i++) {
         //cout << "mac = " << Mac(pkt+offs[i]).toString() << endl;
         tot_stat.total_mac++;
-        ret = mac_set.insert(Mac(pkt+offs[i]));
+
+        /* 源mac地址，则关联rssi */
+        if( 1 == mac_no ) {
+            ret = mac_set.insert(Mac(pkt+offs[i], false, rssi));
+            /* update rssi */
+            if( (false == ret.second) && rssi > Mac::rwIterator(ret.first)->rssi) {
+                printf("rssi = %d\n", rssi);
+                Mac::rwIterator(ret.first)->rssi = rssi;
+            }
+        } else {
+            ret = mac_set.insert(Mac(pkt+offs[i]));
+        }
     
         if(ret.second) {
             cout << '[' << mac_set.size() << "] " << ret.first->toString() << endl;
@@ -67,11 +78,19 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
 {    
     const unsigned char prism_msg_code[] = {0,0,0,0x44};
     const u_char *h80211;
+    int channel = 0, rssi = 0, freq = 0;
 
     if( !memcmp(pktdata, prism_msg_code, 4) ) {
         h80211 = pktdata + ((const unsigned int *)pktdata)[1];
+        channel = ntohl(*(long*)(pktdata+0x38));
+        rssi = ntohl(*(long*)(pktdata+0x44));
+        if(rssi>0) {
+            rssi = 0;
+        }
     } else {
         h80211 = pktdata+pktdata[2]+(pktdata[3]>>8);
+        freq = pktdata[11]*0xff + pktdata[10];
+        rssi = *(signed char*)(pktdata+0xe);
     }
 
     if(pkthdr.len<24){
@@ -91,7 +110,7 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
         case 0:
             /* 3 mac fields */
             //printf("manage\n");
-            pkt_mac_handler(h80211, 3);
+            pkt_mac_handler(h80211, 3, rssi);
         break;
         case 1:
             switch(sub_type) {
@@ -100,14 +119,14 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
                 case 0xe:
                     /* 2 mac fields */
                     //printf("ctrl-(PsPoll/RTS/CF-End)\n");
-                    pkt_mac_handler(h80211, 2);
+                    pkt_mac_handler(h80211, 2, rssi);
                 break;
 
                 case 0xc:
                 case 0xd:
                     /* 1 mac field */
                     //printf("ctrl-(CTS/ACK)\n");
-                    pkt_mac_handler(h80211, 1);
+                    pkt_mac_handler(h80211, 1, rssi);
                 break;
 
                 case 0xf:
@@ -122,11 +141,11 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
             if( 0x3 == (flags & 0x3) ) {
                 /* WDS: 4 mac fields */
                 //printf("data-WDS\n");
-                pkt_mac_handler(h80211, 4);
+                pkt_mac_handler(h80211, 4, rssi);
             } else {
                 /* 3 mac fields */
                 //printf("data-Data\n");
-                pkt_mac_handler(h80211, 3);
+                pkt_mac_handler(h80211, 3, rssi);
             }
         break;
         default:
@@ -150,9 +169,21 @@ void *record_routine(void *arg) {
     cout << "total mac = " << mac_set.size() << endl;
     cout << "total mac(duplicated) = " << tot_stat.total_mac << endl;
     cout << "total packets = " << tot_stat.total_pkts << endl;
+
+#if  1
+    /* 打印最强信号值mac */
+    list<Mac> mac_list;
+    for( set<Mac>::iterator it = mac_set.begin(); it!=mac_set.end(); it++ ) {
+        mac_list.push_back(*it);
+    }
+    mac_list.sort(Mac::mac_rssi_cmp);
+    cout << "mac of max rssi: " << mac_list.begin()->toString()
+         << " rssi=" << mac_list.begin()->rssi << endl;
+#endif
     if(file) {
         Mac::mac_set_all_file(mac_set, file);
         Mac::mac_set_sort_file(mac_set, file);
+        Mac::mac_set_sort_rssi_file(mac_set, file);
         Mac::mac_set_bssid_file(mac_set, file);
     }
     exit(0);
