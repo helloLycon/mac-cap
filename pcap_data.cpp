@@ -50,7 +50,6 @@ int pkt_mac_handler(const u_int8 *pkt, int mac_no, int rssi) {
             ret = mac_set.insert(Mac(pkt+offs[i], false, rssi));
             /* update rssi */
             if( (false == ret.second) && rssi > Mac::rwIterator(ret.first)->rssi) {
-                printf("rssi = %d\n", rssi);
                 Mac::rwIterator(ret.first)->rssi = rssi;
             }
         } else {
@@ -90,7 +89,7 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
     } else {
         h80211 = pktdata+pktdata[2]+(pktdata[3]>>8);
         freq = pktdata[11]*0xff + pktdata[10];
-        rssi = *(signed char*)(pktdata+0xe);
+        rssi = *(signed char*)(pktdata+0x16);
     }
 
     if(pkthdr.len<24){
