@@ -26,6 +26,7 @@ pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 sem_t sem;
 
 Mac *src_mac;
+Mac *dst_mac;
 
 struct stats{
     int total_mac;
@@ -158,7 +159,7 @@ string getType(u_int8 type, u_int8 sub_type) {
 }
 
 //开始读数据包
-void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pkthdr pkthdr)
+void process_one_wireless_cap_packet(const char *input, const u_char *pktdata, const struct pcap_pkthdr pkthdr)
 {    
     const unsigned char prism_msg_code[] = {0,0,0,0x44};
     const u_char *h80211;
@@ -193,14 +194,17 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
     if( src_mac && *src_mac != Mac(h80211+10)) {
         return ;
     }
+    if( dst_mac && *dst_mac != Mac(h80211+4)) {
+        return ;
+    }
 
-    tot_stat.dump_pkts++;
     //printf("fc = 0x%04x\n", *fc);
     //printf("%02x - %02x\n", type, sub_type);
-    if( getType(type, sub_type)=="cts" || getType(type, sub_type)=="ack") {
+    if( src_mac && (getType(type, sub_type)=="cts" || getType(type, sub_type)=="ack") ) {
         return;
     }
     cout << timeval2String(&pkthdr.ts) << ' ' 
+         << '<' << input << "> "
          << mac2String(h80211+4) << ' '
          << mac2String(h80211+4+6) << ' '
          << mac2String(h80211+4+12) << ' ';
@@ -213,6 +217,8 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
     cout << "rssi=" << rssi << ' '
          << "type=" << getType(type,sub_type)
          << endl;
+    fflush(stdout);
+    tot_stat.dump_pkts++;
 #if  0
     switch(type) {
         case 0:
@@ -292,6 +298,7 @@ void *cap_routine(void *arg) {
     const char *input = (char *)arg;
 
     cout << "input: " << input << endl;
+    sleep(2);
 
     /* open a file or a netdev */
     pcap_handle = pcap_open_live(input, BUFSIZ, 1, 1000*60, errbuf);
@@ -307,7 +314,7 @@ void *cap_routine(void *arg) {
 
     while ( (pktdata = pcap_next(pcap_handle,&pkthdr)) != NULL ){
         tot_stat.total_pkts++;
-        process_one_wireless_cap_packet(pktdata, pkthdr);
+        process_one_wireless_cap_packet(input, pktdata, pkthdr);
     }
     pcap_close(pcap_handle);
     return NULL;
@@ -325,7 +332,7 @@ int main(int argc ,char **argv)
     signal(SIGINT, int_handler);
 
     if(argc < 2) {
-        printf("usage: %s <dev/file1> [-s src-mac]\n", argv[0]);
+        printf("usage: %s <dev1> [dev2] [-s src-mac] [-d dst-mac]\n", argv[0]);
         exit(0);
     }
     pthread_t tid;
@@ -343,6 +350,11 @@ int main(int argc ,char **argv)
 
         if(string(argv[i]) == "-s") {
             src_mac = new Mac(argv[i+1]);
+            i++;
+            continue;
+        }
+        if(string(argv[i]) == "-d") {
+            dst_mac = new Mac(argv[i+1]);
             i++;
             continue;
         }
