@@ -178,9 +178,19 @@ void process_one_wireless_cap_packet(const char *input, const u_char *pktdata, c
         rssi = *(signed char*)(pktdata+0xe);
     }
 
-    if(pkthdr.len<24){
+    int macNo = 0;
+    if(pkthdr.len<12){
         printf("error: pkthdr.len=%d\n",pkthdr.len);
         return;
+    }
+    else if(pkthdr.len < 18) {
+        macNo = 1;
+    }
+    else if(pkthdr.len < 24) {
+        macNo = 2;
+    }
+    else {
+        macNo = 3;
     }
 
     //hexdump(pktdata, pkthdr.len, "pkt");
@@ -206,8 +216,8 @@ void process_one_wireless_cap_packet(const char *input, const u_char *pktdata, c
     cout << timeval2String(&pkthdr.ts) << ' ' 
          << '<' << input << "> "
          << mac2String(h80211+4) << ' '
-         << mac2String(h80211+4+6) << ' '
-         << mac2String(h80211+4+12) << ' ';
+         << (macNo>1?mac2String(h80211+4+6):"") << ' '
+         << (macNo>2?mac2String(h80211+4+12):"") << ' ';
     if( channel ) {
         cout << "CH=" << channel << ' ';
     } 
