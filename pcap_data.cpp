@@ -235,6 +235,7 @@ int main(int argc ,char **argv)
 
     if(argc < 2) {
         printf("usage: %s <dev/file1> [dev/file2] ... [-w file]\n", argv[0]);
+        printf("for example: %s wlan0 -w /tmp/wlan0\n", argv[0]);
         exit(0);
     }
     pthread_t tid;
