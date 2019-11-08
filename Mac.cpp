@@ -19,7 +19,7 @@ bool Mac::operator< (const Mac & m) const {
 
 string Mac::toString() const {
     char tmp[32];
-    sprintf(tmp, "%02x:%02x:%02x:%02x:%02x:%02x (%d%s)", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5],counter, is_bssid?", bssid":"" );
+    sprintf(tmp, "%02x:%02x:%02x:%02x:%02x:%02x (%d, ch=%d%s)", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5],counter, this->chan, is_bssid?", bssid":"" );
     return string(tmp);
 }
 

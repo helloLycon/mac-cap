@@ -31,7 +31,7 @@ struct stats{
 } tot_stat = {0};
 
 
-int pkt_mac_handler(const u_int8 *pkt, int mac_no, int rssi) {
+int pkt_mac_handler(const u_int8 *pkt, int mac_no, int rssi, int channel) {
     const int offs[4] = {4,10,16,24};
     //set<int> myset;
     set<Mac>::iterator it;
@@ -55,17 +55,17 @@ int pkt_mac_handler(const u_int8 *pkt, int mac_no, int rssi) {
         } else {
             ret = mac_set.insert(Mac(pkt+offs[i]));
         }
-    
+        /* is bssid */
+        if(Mac::mac_is_bssid(type, sub_type, flags,i+1)){
+            Mac::rwIterator(ret.first)->is_bssid = true;
+        }
+
         if(ret.second) {
+            Mac::rwIterator(ret.first)->chan = channel;
             cout << '[' << mac_set.size() << "] " << ret.first->toString() << endl;
         } else {
             /* exist */
             Mac::rwIterator(ret.first)->counter++;
-        }
-        
-        /* is bssid */
-        if(Mac::mac_is_bssid(type, sub_type, flags,i+1)){
-            Mac::rwIterator(ret.first)->is_bssid = true;
         }
     }
     
@@ -109,7 +109,7 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
         case 0:
             /* 3 mac fields */
             //printf("manage\n");
-            pkt_mac_handler(h80211, 3, rssi);
+            pkt_mac_handler(h80211, 3, rssi, channel);
         break;
         case 1:
             switch(sub_type) {
@@ -118,14 +118,14 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
                 case 0xe:
                     /* 2 mac fields */
                     //printf("ctrl-(PsPoll/RTS/CF-End)\n");
-                    pkt_mac_handler(h80211, 2, rssi);
+                    pkt_mac_handler(h80211, 2, rssi, channel);
                 break;
 
                 case 0xc:
                 case 0xd:
                     /* 1 mac field */
                     //printf("ctrl-(CTS/ACK)\n");
-                    pkt_mac_handler(h80211, 1, rssi);
+                    pkt_mac_handler(h80211, 1, rssi, channel);
                 break;
 
                 case 0xf:
@@ -140,11 +140,11 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
             if( 0x3 == (flags & 0x3) ) {
                 /* WDS: 4 mac fields */
                 //printf("data-WDS\n");
-                pkt_mac_handler(h80211, 4, rssi);
+                pkt_mac_handler(h80211, 4, rssi, channel);
             } else {
                 /* 3 mac fields */
                 //printf("data-Data\n");
-                pkt_mac_handler(h80211, 3, rssi);
+                pkt_mac_handler(h80211, 3, rssi, channel);
             }
         break;
         default:

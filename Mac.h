@@ -15,6 +15,7 @@ public:
     int counter;
     bool is_bssid;
     int rssi;
+    int chan;
 
     Mac(const unsigned char *src, bool bssid=false, int rssi_value=-128);
     string toString() const ;
