@@ -91,6 +91,70 @@ void process_one_wireless_cap_packet(const u_char *pktdata, const struct pcap_pk
         h80211 = pktdata+pktdata[2]+(pktdata[3]>>8);
         freq = pktdata[11]*0xff + pktdata[10];
         rssi = *(signed char*)(pktdata+0x16);
+/*
+        Channel 01 : 2.412 GHz
+        Channel 02 : 2.417 GHz
+        Channel 03 : 2.422 GHz
+        Channel 04 : 2.427 GHz
+        Channel 05 : 2.432 GHz
+        Channel 06 : 2.437 GHz
+        Channel 07 : 2.442 GHz
+        Channel 08 : 2.447 GHz
+        Channel 09 : 2.452 GHz
+        Channel 10 : 2.457 GHz
+        Channel 11 : 2.462 GHz
+        Channel 12 : 2.467 GHz
+        Channel 13 : 2.472 GHz
+        Channel 14 : 2.484 GHz
+*/
+        int freq = pktdata[0x12] + pktdata[0x13]*256;
+        switch(freq) {
+            case  2412 :
+                channel = 1;
+                break;
+            case 2417:
+                channel = 2;
+                break;
+            case 2422 :
+                channel = 3;
+                break;
+            case 2427 :
+                channel = 4;
+                break;
+            case 2432:
+                channel = 5;
+                break;
+            case 2437 :
+                channel = 6;
+                break;
+            case 2442:
+                channel = 7;
+                break;
+            case 2447:
+                channel = 8;
+                break;
+            case 2452:
+                channel = 9;
+                break;
+            case 2457 :
+                channel = 10;
+                break;
+            case 2462:
+                channel = 11;
+                break;
+            case 2467:
+                channel = 12;
+                break;
+            case 2472:
+                channel = 13;
+                break;
+            case 2484:
+                channel = 14;
+                break;
+            default:
+                channel = 0;
+                break;
+        }
     }
 
     if(pkthdr.len<24){
