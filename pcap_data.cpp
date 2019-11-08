@@ -11,6 +11,7 @@
 #include <set>
 #include <list>
 #include <pthread.h>
+#include <unistd.h>
 #include <semaphore.h>
 
 #include "Mac.h"
