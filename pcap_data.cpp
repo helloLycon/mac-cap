@@ -35,6 +35,12 @@ struct stats{
     int dump_pkts;
 } tot_stat = {0};
 
+struct TagParam {
+    unsigned char tagNum;
+    unsigned char tagLen;
+    unsigned char data[0];
+} __attribute__ ((packed));
+
 string mac2String(const u_int8 *mac) {
     char macStr[64];
     sprintf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
@@ -166,6 +172,7 @@ void process_one_wireless_cap_packet(const char *input, const u_char *pktdata, c
     const u_char *h80211;
     int channel = 0, rssi = 0, freq = 0;
 
+    //printf("len=%u ", pkthdr.len);
     if( !memcmp(pktdata, prism_msg_code, 4) ) {
         h80211 = pktdata + ((const unsigned int *)pktdata)[1];
         channel = ntohl(*(long*)(pktdata+0x38));
@@ -226,8 +233,25 @@ void process_one_wireless_cap_packet(const char *input, const u_char *pktdata, c
         cout << "freq=" << freq << ' ';
     }
     cout << "rssi=" << rssi << ' '
-         << "type=" << getType(type,sub_type)
-         << endl;
+         << "type=\"" << getType(type,sub_type) << "\"";
+
+    /* frame type, flags: 24bytes,  fixed parameters: 12bytes, then essid: 2+essid_len */
+    /* beacon/probe-response frame needed */
+    if(pkthdr.len > (24+12+2) && (getType(type, sub_type)=="probe response" ||getType(type, sub_type)=="beacon" ) ) {
+        for(int offset = 24+12; pkthdr.len>(offset+2);) {
+            const struct TagParam *tagParamPtr = (struct TagParam *)(h80211+offset);
+            /* ssid param set */
+            if(tagParamPtr->tagNum == 0 && tagParamPtr->tagLen != 0) {
+                char essid[128];
+                memcpy(essid, tagParamPtr->data, tagParamPtr->tagLen);
+                essid[tagParamPtr->tagLen] = '\0';
+                cout << " essid=\"" << essid << "\"";
+                break;
+            }
+            offset += (2 + tagParamPtr->tagLen);
+        }
+    }
+    cout << endl;
     fflush(stdout);
     tot_stat.dump_pkts++;
 #if  0
